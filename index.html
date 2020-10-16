@@ -1,1 +1,403 @@
-<h1>hello</h1>
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="face-api.js"></script>
+  <script src="js/commons.js"></script>
+  <script src="js/faceDetectionControls.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.css">
+  <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+  <script src="js/post_to_sheet.js"></script>
+  <script src="js/Chart.js"></script>
+  <script  src="/js/script.js"></script>
+  <!-- <script  src="/js/speechRecognition.js"></script> -->
+  <meta charset="UTF-8">
+  <title>Wisdom AI</title>
+  <link rel="stylesheet" href="./style.css">
+  <!-- <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script> -->
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.js'></script>
+  <script  src="js/speechRecognition.js"></script>
+  <script src="js/textToSpeech.js"></script>
+</head>
+<body>
+  
+
+  <div id="page-wrapper">
+    <h1 style="display: flex; justify-content: center; margin-bottom: -30px; font-size:20px">Wisdom AI</h1>
+    
+    <!-- <p id="msg"></p> -->
+  
+    <!-- <input type="text" name="speech-msg" id="speech-msg" x-webkit-speech> -->
+  
+      <div class="option">
+          <!-- <label for="voice">Voice</label> -->
+          <select name="voice" id="voice"></select>
+      </div>
+      <!-- <div class="option">
+          <label for="volume">Volume</label>
+          <input type="range" min="0" max="1" step="0.1" name="volume" id="volume" value="1">
+      </div>
+      <div class="option">
+          <label for="rate">Rate</label>
+          <input type="range" min="0.1" max="10" step="0.1" name="rate" id="rate" value="1">
+      </div>
+      <div class="option">
+          <label for="pitch">Pitch</label>
+          <input type="range" min="0" max="2" step="0.1" name="pitch" id="pitch" value="1">
+      </div>
+  
+      <button id="speak">Speak</button> -->
+  
+  </div>
+  <script  src="/js/script.js"></script>
+
+  <!-- <div id="navbar"></div> -->
+  <div class="center-content page-container">
+
+    <div class="progress" id="loader">
+      <div class="indeterminate"></div>
+    </div>
+    <div style="position: relative" class="margin">
+      <video onloadedmetadata="onPlay(this)" id="inputVideo" autoplay muted playsinline></video>
+      <canvas id="overlay" /> 
+    </div>
+    <div>
+      <canvas id="myChart" width="400" height="400"></canvas>
+    </div>
+  </div>
+  
+  <!-- <button>START LISTENING</button> -->
+  <!-- <h1></h1> -->
+
+  
+  <!-- <script  src="js/bundle.js"></script> -->
+
+
+  <!-- <script type="text/javascript">
+    var frm = $('post_data');
+    frm.submit(function (ev) {
+        $.ajax({
+            type: frm.attr('method'),
+            url: frm.attr('action'),
+            data: frm.serialize(),
+            success: function (data) {
+                alert('ok');
+            }
+        });
+        ev.preventDefault();
+    });
+  </script> -->
+
+
+    <form id="post_data">
+      <div style="display: none;">
+        <input name="neutral_post" id="neutral" type="text" value="">
+        <input name="happy_post" id="happy" type="text" value="">
+        <input name="sad_post" id="sad" type="text" value="">
+        <input name="angry_post" id="angry" type="text" value="">
+      </div>  
+        <center><input type="submit" value="Yes"  onclick ="update_status()"></center>
+    </form>
+
+    <div id='neu' value=''>
+    </div>
+
+    
+    
+
+  </body>
+
+  <script>
+    let forwardTimes = []
+    let withBoxes = true
+    var i = 0
+    var neutral_vals = []
+    var happy_vals = []
+    var sad_vals = []
+    var angry_vals = []
+    let start = Date.now()
+    var shouldSpeak = true
+    var neutral
+    var happy 
+    var sad 
+    var angry 
+
+    function onChangeHideBoundingBoxes(e) {
+      withBoxes = !$(e.target).prop('checked')
+    }
+
+    function updateTimeStats(timeInMs) {
+      forwardTimes = [timeInMs].concat(forwardTimes).slice(0, 30)
+      const avgTimeInMs = forwardTimes.reduce((total, t) => total + t) / forwardTimes.length
+      $('#time').val(`${Math.round(avgTimeInMs)} ms`)
+      $('#fps').val(`${faceapi.utils.round(1000 / avgTimeInMs)}`)
+    }
+
+    function speak(text) {
+        // Create a new instance of SpeechSynthesisUtterance.
+        var msg = new SpeechSynthesisUtterance();
+        
+        // Set the text.
+        // msg.text = text;
+        msg.text = 'hello how are you? Would you like to hear a joke?'
+        
+        // Set the attributes.
+        // msg.volume = parseFloat(volumeInput.value);
+        // msg.rate = parseFloat(rateInput.value);
+        // msg.pitch = parseFloat(pitchInput.value);
+        msg.volume = 1;
+        msg.rate = parseFloat(.9);
+        msg.pitch = 1;
+        msg.voice = speechSynthesis.getVoices().filter(function(voice) { return voice.name == 'Google UK English Female'; })[0];
+        
+        // If a voice has been selected, find the voice and set the
+        // utterance instance's voice attribute.
+        // if (voiceSelect.value) {
+        // 	console.log(voiceSelect.value)
+        // 	msg.voice = speechSynthesis.getVoices().filter(function(voice) { return voice.name == voiceSelect.value; })[0];
+        // }
+        
+        // Queue this utterance.
+        window.speechSynthesis.speak(msg);
+}
+
+    async function onPlay() {
+      const videoEl = $('#inputVideo').get(0)
+
+      if(videoEl.paused || videoEl.ended || !isFaceDetectionModelLoaded())
+        return setTimeout(() => onPlay())
+
+
+      const options = getFaceDetectorOptions()
+
+      const ts = Date.now()
+
+      const result = await faceapi.detectSingleFace(videoEl, options).withFaceExpressions()
+
+      updateTimeStats(Date.now() - ts)
+
+      if (result) {
+        const canvas = $('#overlay').get(0)
+        const dims = faceapi.matchDimensions(canvas, videoEl, true)
+
+        const resizedResult = faceapi.resizeResults(result, dims)
+        const minConfidence = 0.05
+        if (withBoxes) {
+          faceapi.draw.drawDetections(canvas, resizedResult)
+        }
+        faceapi.draw.drawFaceExpressions(canvas, resizedResult, minConfidence)
+        // console.log(result)
+        
+        
+
+        function getResult(result) {
+          // console.log(result)
+            for (var key in result){
+              if (key = 'expressions'){
+                var count = 0
+                var date = Date.now()-start
+
+                neutral = result[key]['neutral']
+                happy = result[key]['happy']
+                sad = result[key]['sad']
+                angry = result[key]['angry']
+                neutral_vals.push(neutral)
+                document.getElementById('neu').value = neutral
+                if (neutral<.5){
+                  // speak()
+                }
+                happy_vals.push(happy)
+                sad_vals.push(sad)
+                angry_vals.push(angry)
+                addData(myChart, date, [neutral,happy,sad,angry])
+                // document.getElementById('post_data').submit();
+                
+                if (neutral_vals.length>100){
+                  neutral_vals.shift()
+                }
+                if (happy_vals.length>100){
+                  happy_vals.shift()
+                }
+                if (sad_vals.length>100){
+                  sad_vals.shift()
+                }
+                if (angry_vals.length>100){
+                  angry_vals.shift()
+                }
+                
+              } 
+            }
+          }
+        getResult(result)
+
+      }
+
+      setTimeout(() => onPlay())
+    }
+
+    var addEvent = document.addEventListener ? function(target,type,action){
+        if(target){
+            target.addEventListener(type,action,false);
+        }
+    } : function(target,type,action){
+        if(target){
+            target.attachEvent('on' + type,action,false);
+        }
+    }
+
+    addEvent(document,'keydown',function(e){
+              e = e || window.event;
+              var key = e.which || e.keyCode;
+              if(key===122){
+                  console.log('yay')
+              }
+          });
+
+
+    // chart_data_update(myChart, "neutral", neutral)
+    // console.log('neutral', neutral)
+    console.log('cool')
+    if (shouldSpeak){
+      window.setInterval(function(){
+        const arrAvg = arr => arr.reduce((a,b) => a + b, 0) / arr.length
+        sadAvg = arrAvg(sad_vals)
+        console.log(sadAvg)
+        if (sadAvg>.3){
+          speak('text')
+          // window.setTimeout(buttonClick(),5000)
+          shouldSpeak
+          console.log('speaking')
+          
+        }
+      }, 5000);
+    }
+
+    async function run() {
+      // load face detection and face expression recognition models
+      await changeFaceDetector(TINY_FACE_DETECTOR)
+      await faceapi.loadFaceExpressionModel('/')
+      changeInputSize(224)
+
+      // try to access users webcam and stream the images
+      // to the video element
+      const stream = await navigator.mediaDevices.getUserMedia({ video: {} })
+      const videoEl = $('#inputVideo').get(0)
+      videoEl.srcObject = stream
+    }
+
+    function updateResults() {}
+    function update_form(val){
+      document.getElementById(this).value = val
+    }
+    function update_status()
+  		{
+      //document.getElementById("status").innerHTML  = "Submitting";
+      // for (neutral_val in neutral_vals){
+      //   document.getElementById("neutral").value = neutral_val;
+      //   console.log(neutral_val)
+      // }
+      // neutral_vals.every(update_form, 'neutral')
+      document.getElementById("neutral").value = neutral;
+      document.getElementById("happy").value = happy;
+      document.getElementById("sad").value = sad;
+      document.getElementById("angry").value = angry;
+      }
+      
+    
+
+    $(document).ready(function() {
+      // renderNavBar('#navbar', 'webcam_face_expression_recognition')
+      initFaceDetectionControls()
+      run()
+    })
+
+    function addData(chart, label, data) {
+      var dsets = chart.data.datasets;
+      var l = chart.data.labels;
+      var n = dsets[0].data;
+      var h = dsets[1].data;
+      var s = dsets[2].data;
+      var a = dsets[3].data;  
+      var length = n.length;
+
+      var didRemoveData = false
+      if (length > 50) {
+        n.shift();
+        h.shift();
+        s.shift();
+        a.shift();
+      didRemoveData = true;
+    }
+
+    // if either download or upload data was removed, we also need to remove
+    // the first label to keep the data from squeezing in.
+    if (didRemoveData) {
+      l.shift();
+    }
+    l.push(label);
+    n.push(data[0]);
+    h.push(data[1]);
+    s.push(data[2]);
+    a.push(data[3]);
+    chart.update();
+}
+
+    var ctx = document.getElementById('myChart');
+    var myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'neutral',
+                data: [],
+                pointRadius: 1,
+                fill: false
+            },
+            {
+                label: 'happy',
+                data: [],
+                pointRadius: 1,
+                fill: false,
+                borderColor: 'rgba(245, 215, 110, 1)',
+                backgroundColor: 'rgba(245, 215, 110, 1)',
+                showLine: true
+            },
+            {
+                label: 'sad',
+                data: [],
+                pointRadius: 1,
+                fill: false,
+                borderColor: 'rgba(173,216,230,1)',
+                backgroundColor: 'rgba(173,216,230,1)',
+                showLine: true
+            },
+            {
+                label: 'angry',
+                data: [],
+                pointRadius: 1,
+                fill: false,
+                borderColor: 'rgba(255,40,0,1)',
+                backgroundColor: 'rgba(255,40,0,1)',
+                showLine: true
+            }]
+        },
+        options: {
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true,
+                        suggestedMax: 1.0,
+                        suggestedMin: 0,
+                        stepSize: .1
+                    }
+                }]
+            },
+            animation: false,
+            spanGaps: true
+        }
+    });
+
+  </script>
+</body>
+</html>
